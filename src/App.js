@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 
+// Use environment variable for API URL (falls back to localhost for local development)
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 function App() {
   const [status, setStatus] = useState(null);
   const [countdown, setCountdown] = useState(0);
@@ -12,7 +15,7 @@ function App() {
 
   const fetchStatus = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/status');
+      const res = await axios.get(`${API_URL}/api/status`);
       setStatus(res.data);
       setCountdown(Math.max(0, res.data.remaining_time));
     } catch (error) {
@@ -28,7 +31,7 @@ function App() {
     setIsTyping(true);
 
     try {
-      const res = await axios.post('http://localhost:5000/api/ai-chat', { message: userMsg });
+      const res = await axios.post(`${API_URL}/api/ai-chat`, { message: userMsg });
       setChatMessages(prev => [...prev, { role: 'ai', content: res.data.response }]);
     } catch (error) {
       setChatMessages(prev => [...prev, { role: 'ai', content: 'AI service error. Check Gemini API key.' }]);
@@ -37,7 +40,7 @@ function App() {
   };
 
   const triggerEmergency = async (lane) => {
-    await axios.post('http://localhost:5000/api/emergency', { lane });
+    await axios.post(`${API_URL}/api/emergency`, { lane });
     fetchStatus();
   };
 
@@ -133,7 +136,7 @@ function App() {
       </div>
 
       <footer>
-        <p>🟢 Live | API: localhost:5000 | AI: Google Gemini | Refresh: 1s</p>
+        <p>🟢 Live | API: {API_URL} | AI: Google Gemini | Refresh: 1s</p>
       </footer>
     </div>
   );
