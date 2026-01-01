@@ -58,6 +58,16 @@ function App() {
     chatRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
+  // Countdown timer effect - decrements every second
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => {
+        setCountdown(prev => Math.max(0, prev - 1));
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
   if (!status) return <div className="loading">Loading Smart Traffic AI...</div>;
 
   const getColor = (light) => {
