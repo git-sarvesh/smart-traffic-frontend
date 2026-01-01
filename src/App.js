@@ -11,6 +11,7 @@ function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [selectedLane, setSelectedLane] = useState(null);
   const chatRef = useRef(null);
 
   const fetchStatus = async () => {
@@ -29,12 +30,11 @@ function App() {
     setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setChatInput('');
     setIsTyping(true);
-
     try {
       const res = await axios.post(`${API_URL}/api/ai-chat`, { message: userMsg });
       setChatMessages(prev => [...prev, { role: 'ai', content: res.data.response }]);
     } catch (error) {
-      setChatMessages(prev => [...prev, { role: 'ai', content: 'AI service error. Check Gemini API key.' }]);
+      setChatMessages(prev => [...prev, { role: 'ai', content: 'Gemini AI: Service temporarily unavailable.' }]);
     }
     setIsTyping(false);
   };
@@ -42,6 +42,10 @@ function App() {
   const triggerEmergency = async (lane) => {
     await axios.post(`${API_URL}/api/emergency`, { lane });
     fetchStatus();
+  };
+
+  const handleLaneClick = (laneId) => {
+    setSelectedLane(laneId);
   };
 
   useEffect(() => {
@@ -53,14 +57,6 @@ function App() {
   useEffect(() => {
     chatRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
-
-  useEffect(() => {
-    let timer;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown]);
 
   if (!status) return <div className="loading">Loading Smart Traffic AI...</div>;
 
@@ -86,13 +82,26 @@ function App() {
 
       <div className="lanes">
         {Object.entries(status.lanes).map(([id, lane]) => (
-          <div key={id} className="lane-card" style={{borderLeft: `8px solid ${getColor(lane.light)}`}}>
+          <div 
+            key={id} 
+            className={`lane-card ${selectedLane === id ? 'selected' : ''}`}
+            style={{borderLeft: `8px solid ${getColor(lane.light)}`}}
+            onClick={() => handleLaneClick(id)}
+          >
             <h3>{id}</h3>
             <p>{lane.count} cars | Density: {lane.density}/5</p>
             <p>{lane.light}</p>
           </div>
         ))}
       </div>
+
+      {selectedLane && (
+        <div className="selected-lane-info">
+          <h3>Selected Lane: {selectedLane}</h3>
+          <p>Status: {status.lanes[selectedLane].light}</p>
+          <p>Cars: {status.lanes[selectedLane].count} | Density: {status.lanes[selectedLane].density}/5</p>
+        </div>
+      )}
 
       <div className="prediction">
         <h3>🎯 Congestion Prediction</h3>
