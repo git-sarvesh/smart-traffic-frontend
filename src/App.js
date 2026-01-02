@@ -20,9 +20,8 @@ function App() {
       const res = await axios.get(`${API_URL}/api/status`);
       setStatus(res.data);
       // Only update countdown if we haven't started counting or if there's a big difference
-      if (countdown === 0 || Math.abs(countdown - res.data.remaining_time) > 3) {
-        setCountdown(Math.max(0, res.data.remaining_time));
-      }
+    // Only sync with backend when countdown reaches 0 (signal changed)
+      setCountdown(res.data.remaining_time);      }
       lastSyncRef.current = Date.now();
     } catch (error) {
       console.error('API Error:', error);
