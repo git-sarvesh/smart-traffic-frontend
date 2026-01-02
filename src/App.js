@@ -13,12 +13,17 @@ function App() {
   const [isTyping, setIsTyping] = useState(false);
   const [selectedLane, setSelectedLane] = useState(null);
   const chatRef = useRef(null);
+  const lastSyncRef = useRef(0); // Track when we last synced with backend
 
   const fetchStatus = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/status`);
       setStatus(res.data);
-      setCountdown(Math.max(0, res.data.remaining_time));
+      // Only update countdown if we haven't started counting or if there's a big difference
+      if (countdown === 0 || Math.abs(countdown - res.data.remaining_time) > 3) {
+        setCountdown(Math.max(0, res.data.remaining_time));
+      }
+      lastSyncRef.current = Date.now();
     } catch (error) {
       console.error('API Error:', error);
     }
@@ -34,7 +39,11 @@ function App() {
       const res = await axios.post(`${API_URL}/api/ai-chat`, { message: userMsg });
       setChatMessages(prev => [...prev, { role: 'ai', content: res.data.response }]);
     } catch (error) {
-      setChatMessages(prev => [...prev, { role: 'ai', content: 'Gemini AI: Service temporarily unavailable.' }]);
+      console.error('Gemini AI Error:', error);
+      setChatMessages(prev => [...prev, { 
+        role: 'ai', 
+        content: error.response?.data?.error || 'Gemini AI: Service temporarily unavailable.'
+      }]);
     }
     setIsTyping(false);
   };
@@ -48,9 +57,10 @@ function App() {
     setSelectedLane(laneId);
   };
 
+  // Fetch status every 5 seconds (less frequent to not interfere with countdown)
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 1000);
+    const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -58,13 +68,16 @@ function App() {
     chatRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  // Countdown timer effect - decrements every second
+  // Smooth countdown timer - decrements every second
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => {
         setCountdown(prev => Math.max(0, prev - 1));
       }, 1000);
       return () => clearTimeout(timer);
+    } else if (countdown === 0 && status) {
+      // When countdown reaches 0, fetch new status to get next signal
+      fetchStatus();
     }
   }, [countdown]);
 
@@ -86,7 +99,7 @@ function App() {
       </header>
 
       <div className="main-display">
-        <h2>{status.active_lane} - GREEN</h2>
+        <h2>{status.active_lane} - {status.lanes[status.active_lane]?.light || 'GREEN'}</h2>
         <div className="countdown">{countdown}s</div>
       </div>
 
@@ -95,20 +108,29 @@ function App() {
           <div 
             key={id} 
             className={`lane-card ${selectedLane === id ? 'selected' : ''}`}
-            style={{borderLeft: `8px solid ${getColor(lane.light)}`}}
+            style={{
+              borderLeft: `8px solid ${getColor(lane.light)}`,
+              cursor: 'pointer'
+            }}
             onClick={() => handleLaneClick(id)}
           >
             <h3>{id}</h3>
             <p>{lane.count} cars | Density: {lane.density}/5</p>
-            <p>{lane.light}</p>
+            <p style={{ color: getColor(lane.light), fontWeight: 'bold' }}>{lane.light}</p>
           </div>
         ))}
       </div>
 
       {selectedLane && (
-        <div className="selected-lane-info">
-          <h3>Selected Lane: {selectedLane}</h3>
-          <p>Status: {status.lanes[selectedLane].light}</p>
+        <div className="selected-lane-info" style={{
+          background: '#2c3e50',
+          padding: '15px',
+          borderRadius: '8px',
+          margin: '20px 0',
+          border: '2px solid #3498db'
+        }}>
+          <h3 style={{ color: '#3498db' }}>Selected Lane: {selectedLane}</h3>
+          <p>Status: <span style={{ color: getColor(status.lanes[selectedLane].light) }}>{status.lanes[selectedLane].light}</span></p>
           <p>Cars: {status.lanes[selectedLane].count} | Density: {status.lanes[selectedLane].density}/5</p>
         </div>
       )}
@@ -155,7 +177,7 @@ function App() {
       </div>
 
       <footer>
-        <p>🟢 Live | API: {API_URL} | AI: Google Gemini | Refresh: 1s</p>
+        <p>🟢 Live | API: {API_URL} | AI: Google Gemini | Refresh: 5s</p>
       </footer>
     </div>
   );
