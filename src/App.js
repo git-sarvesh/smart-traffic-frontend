@@ -21,7 +21,7 @@ function App() {
       setStatus(res.data);
       // Only update countdown if we haven't started counting or if there's a big difference
     // Only sync with backend when countdown reaches 0 (signal changed)
-      setCountdown(res.data.remaining_time);      }
+      setCountdown(res.data.remaining_time);     
       lastSyncRef.current = Date.now();
     } catch (error) {
       console.error('API Error:', error);
